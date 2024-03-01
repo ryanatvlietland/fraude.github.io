@@ -1,1 +1,53 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Map en Bestand Hash Berekenaar</title>
+</head>
+<body>
+    <h2>Selecteer een map om de SHA-256 hash van elk bestand te berekenen en de mapnaam te tonen</h2>
+    <input type="file" id="dirInput" webkitdirectory directory multiple>
+    <div id="mapNaam">Mapnaam zal hier verschijnen</div>
+    <div id="output">Bestandsnamen en hashes zullen hier verschijnen</div>
 
+    <script>
+      document.getElementById('dirInput').addEventListener('change', event => {
+        const bestanden = event.target.files;
+        if (!bestanden.length) {
+          document.getElementById('output').textContent = "Geen map geselecteerd.";
+          return;
+        }
+
+        // Probeer de mapnaam af te leiden
+        const mapNaam = bestanden[0].webkitRelativePath.split('/')[0];
+        document.getElementById('mapNaam').textContent = `Geselecteerde map: ${mapNaam}`;
+
+        const outputDiv = document.getElementById('output');
+        outputDiv.textContent = ''; // Maak de output leeg voor nieuwe invoer
+
+        // Verwerk elk bestand in de geselecteerde map
+        Array.from(bestanden).forEach((bestand, index) => {
+          const lezer = new FileReader();
+          lezer.onload = function(e) {
+            const inhoud = e.target.result;
+            berekenHash(inhoud).then(hash => {
+              outputDiv.innerHTML += `<div>Bestandsnaam: ${bestand.name}, Hash: ${hash}</div>`;
+            });
+          };
+          lezer.readAsArrayBuffer(bestand);
+        });
+      });
+
+      async function berekenHash(inhoud) {
+        const buffer = await crypto.subtle.digest('SHA-256', inhoud);
+        return bufferNaarHex(buffer);
+      }
+
+      function bufferNaarHex(buffer) {
+        return Array.from(new Uint8Array(buffer))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      }
+    </script>
+</body>
+</html>

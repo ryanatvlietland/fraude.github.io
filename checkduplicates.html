@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Map en Bestand Hash Controle met Detailoverzicht</title>
+</head>
+<body>
+    <h2>Selecteer een map om de SHA-256 hash van elk bestand te controleren, op te slaan en overeenkomsten te identificeren</h2>
+    <input type="file" id="dirInput" webkitdirectory directory multiple>
+    <div id="meldingen">Meldingen zullen hier verschijnen</div>
+    <h3>Opgeslagen Hashes en Mapnamen</h3>
+    <div id="opgeslagenHashesOverzicht">Geen hashes opgeslagen.</div>
+
+    <script>
+      let opgeslagenHashes = {}; // Opslag voor hashcodes: {hash: [{mapNaam: '', bestandsNaam: ''}]}
+
+      document.getElementById('dirInput').addEventListener('change', async event => {
+        const bestanden = event.target.files;
+        if (!bestanden.length) {
+          return;
+        }
+
+        // Probeer de mapnaam van de huidige upload af te leiden
+        const huidigeMapNaam = bestanden[0].webkitRelativePath.split('/')[0];
+        const meldingenDiv = document.getElementById('meldingen');
+        meldingenDiv.textContent = ''; // Maak de meldingen leeg voor nieuwe invoer
+
+        // Verwerk elk bestand in de geselecteerde map
+        for (const bestand of bestanden) {
+          const inhoud = await bestand.arrayBuffer();
+          const hash = await berekenHash(inhoud);
+          const relatievePad = bestand.webkitRelativePath;
+
+          // Controleer of de hash al bestaat
+          if (opgeslagenHashes[hash]) {
+            opgeslagenHashes[hash].forEach(opgeslagenInfo => {
+              meldingenDiv.innerHTML += `<p>Overeenkomende hash gevonden tussen map "${opgeslagenInfo.mapNaam}" (bestand: ${opgeslagenInfo.bestandsNaam}) en huidige map "${huidigeMapNaam}" (bestand: ${bestand.name})</p>`;
+            });
+            opgeslagenHashes[hash].push({ mapNaam: huidigeMapNaam, bestandsNaam: bestand.name });
+          } else {
+            opgeslagenHashes[hash] = [{ mapNaam: huidigeMapNaam, bestandsNaam: bestand.name }];
+          }
+        }
+
+        toonOpgeslagenHashes();
+      });
+
+      async function berekenHash(inhoud) {
+        const buffer = await crypto.subtle.digest('SHA-256', inhoud);
+        return bufferNaarHex(buffer);
+      }
+
+      function bufferNaarHex(buffer) {
+        return Array.from(new Uint8Array(buffer))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      }
+
+      function toonOpgeslagenHashes() {
+        const overzichtDiv = document.getElementById('opgeslagenHashesOverzicht');
+        overzichtDiv.innerHTML = ''; // Maak de lijst leeg
+        Object.entries(opgeslagenHashes).forEach(([hash, infoArray]) => {
+          infoArray.forEach(info => {
+            overzichtDiv.innerHTML += `<p>${hash}: ${info.mapNaam} / ${info.bestandsNaam}</p>`;
+          });
+        });
+        if (Object.keys(opgeslagenHashes).length === 0) {
+          overzichtDiv.textContent = 'Geen hashes opgeslagen.';
+        }
+      }
+    </script>
+</body>
+</html>
